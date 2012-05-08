@@ -19,6 +19,8 @@
  * ========================================================= */
 
 !function( $ ) {
+	
+	"use strict"; // jshint ;_;
 
 	// Picker object
 
@@ -48,10 +50,10 @@
 		} else {
 			if (this.component){
 				this.component.on('click', $.proxy(this.show, this));
-				var element = this.element.find('input');
+				element = this.element.find('input');
 				element.on({
 					blur: $.proxy(this._hide, this)
-				})
+				});
 			} else {
 				this.element.on('click', $.proxy(this.show, this));
 			}
@@ -73,8 +75,6 @@
 			case 'year':
 				this.viewMode = this.startViewMode = 1;
 				break;
-			case 0:
-			case 'month':
 			default:
 				this.viewMode = this.startViewMode = 0;
 				break;
@@ -114,23 +114,23 @@
 		},
 
 		_hide: function(e){
+			function cancel_hide(){
+				clearTimeout(hide_timeout);
+				e.target.focus();
+				t.picker.off('click', cancel_hide);
+			}
+
+			function do_hide(){
+				t.hide.apply(t, args);
+				t.picker.off('click', cancel_hide);
+			}
 			// When going from the input to the picker, IE handles the blur/click
 			// events differently than other browsers, in such a way that the blur
 			// event triggers a hide before the click event can stop propagation.
 			if ($.browser.msie) {
 				var t = this, args = arguments;
 
-				function cancel_hide(){
-					clearTimeout(hide_timeout);
-					e.target.focus();
-					t.picker.off('click', cancel_hide);
-				}
-
-				function do_hide(){
-					t.hide.apply(t, args);
-					t.picker.off('click', cancel_hide);
-				}
-
+				
 				this.picker.on('click', cancel_hide);
 				var hide_timeout = setTimeout(do_hide, 100);
 			} else {
@@ -208,8 +208,8 @@
 		},
 
 		fillDow: function(){
-			var dowCnt = this.weekStart;
-			var html = '<tr>';
+			var dowCnt = this.weekStart,
+				html = '<tr>';
 			while (dowCnt < this.weekStart + 7) {
 				html += '<th class="dow">'+dates[this.language].daysMin[(dowCnt++)%7]+'</th>';
 			}
@@ -218,8 +218,8 @@
 		},
 
 		fillMonths: function(){
-			var html = '';
-			var i = 0
+			var html = '',
+				i = 0;
 			while (i < 12) {
 				html += '<span class="month">'+dates[this.language].monthsShort[i++]+'</span>';
 			}
@@ -243,10 +243,10 @@
 				day = DPGlobal.getDaysInMonth(prevMonth.getFullYear(), prevMonth.getMonth());
 			prevMonth.setDate(day);
 			prevMonth.setDate(day - (prevMonth.getDay() - this.weekStart + 7)%7);
-			var nextMonth = new Date(prevMonth);
+			var nextMonth = new Date(prevMonth),
+				html = [];
 			nextMonth.setDate(nextMonth.getDate() + 42);
 			nextMonth = nextMonth.valueOf();
-			html = [];
 			var clsName;
 			while(prevMonth.valueOf() < nextMonth) {
 				if (prevMonth.getDay() == this.weekStart) {
@@ -342,7 +342,7 @@
 		click: function(e) {
 			e.stopPropagation();
 			e.preventDefault();
-			var target = $(e.target).closest('span, td, th');
+			var day,month,year,target = $(e.target).closest('span, td, th');
 			if (target.length == 1) {
 				switch(target[0].nodeName.toLowerCase()) {
 					case 'th':
@@ -369,10 +369,10 @@
 					case 'span':
 						if (!target.is('.disabled')) {
 							if (target.is('.month')) {
-								var month = target.parent().find('span').index(target);
+								month = target.parent().find('span').index(target);
 								this.viewDate.setMonth(month);
 							} else {
-								var year = parseInt(target.text(), 10)||0;
+								year = parseInt(target.text(), 10)||0;
 								this.viewDate.setFullYear(year);
 							}
 							this.showMode(-1);
@@ -381,11 +381,12 @@
 						break;
 					case 'td':
 						if (target.is('.day') && !target.is('.disabled')){
-							var day = parseInt(target.text(), 10)||1;
-							var year = this.viewDate.getFullYear(),
-								month = this.viewDate.getMonth();
+							day = parseInt(target.text(), 10)||1;
+							month = this.viewDate.getMonth();
+							year = this.viewDate.getFullYear();
+							
 							if (target.is('.old')) {
-								if (month == 0) {
+								if (month === 0) {
 									month = 11;
 									year -= 1;
 								} else {
@@ -439,13 +440,15 @@
 				new_month, test;
 			dir = dir > 0 ? 1 : -1;
 			if (mag == 1){
-				test = dir == -1
+				if(dir == -1){
 					// If going back one month, make sure month is not current month
 					// (eg, Mar 31 -> Feb 31 == Feb 28, not Mar 02)
-					? function(){ return new_date.getMonth() == month; }
+					test = function(){ return new_date.getMonth() == month; };
+				}else{
 					// If going forward one month, make sure month is as expected
 					// (eg, Jan 31 -> Feb 31 == Feb 28, not Mar 02)
-					: function(){ return new_date.getMonth() != new_month; };
+					test = function(){ return new_date.getMonth() != new_month; };
+				}
 				new_month = month + dir;
 				new_date.setMonth(new_month);
 				// Dec -> Jan (12) or Jan -> Dec (-1) -- limit expected date to 0-11
@@ -579,7 +582,7 @@
 			months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
 			monthsShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 		}
-	}
+	};
 
 	var DPGlobal = {
 		modes: [
@@ -599,33 +602,36 @@
 				navStep: 10
 		}],
 		isLeapYear: function (year) {
-			return (((year % 4 === 0) && (year % 100 !== 0)) || (year % 400 === 0))
+			return (((year % 4 === 0) && (year % 100 !== 0)) || (year % 400 === 0));
 		},
 		getDaysInMonth: function (year, month) {
-			return [31, (DPGlobal.isLeapYear(year) ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month]
+			return [31, (DPGlobal.isLeapYear(year) ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month];
 		},
 		validParts: /dd?|mm?|MM?|yy(?:yy)?/g,
 		nonpunctuation: /[^ -\/:-@\[-`{-~\t\n\r]+/g,
 		parseFormat: function(format){
 			// IE treats \0 as a string end in inputs (truncating the value),
 			// so it's a bad format delimiter, anyway
-			var separators = format.replace(this.validParts, '\0').split('\0'),
+			var separators = format.split(this.validParts),
 				parts = format.match(this.validParts);
-			if (!separators || !separators.length || !parts || parts.length == 0){
+			if (!separators || !separators.length || !parts || parts.length === 0){
 				throw new Error("Invalid date format.");
 			}
 			return {separators: separators, parts: parts};
 		},
 		parseDate: function(date, format, language) {
 			if (date instanceof Date) return date;
-			if (/^[-+]\d+[dmwy]([\s,]+[-+]\d+[dmwy])*$/.test(date)) {
-				var part_re = /([-+]\d+)([dmwy])/,
-					parts = date.match(/([-+]\d+)([dmwy])/g),
-					part, dir;
+			
+			var part_re, parts, part, dir, i;
+				
+			if (/^[\-+]\d+[dmwy]([\s,]+[\-+]\d+[dmwy])*$/.test(date)) {
+				part_re = /([\-+]\d+)([dmwy])/;
+				parts = date.match(/([\-+]\d+)([dmwy])/g);
+				
 				date = new Date();
-				for (var i=0; i<parts.length; i++) {
+				for (i=0; i<parts.length; i++) {
 					part = part_re.exec(parts[i]);
-					dir = parseInt(part[1]);
+					dir = parseInt(part[1], 10);
 					switch(part[2]){
 						case 'd':
 							date.setDate(date.getDate() + dir);
@@ -643,28 +649,25 @@
 				}
 				return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
 			}
-			var parts = date ? date.match(this.nonpunctuation) : [],
-				date = new Date(),
-				val, filtered;
+			parts = date ? date.match(this.nonpunctuation) : [];
+			date = new Date();
+			var val, filtered;
 			date = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
 			if (parts.length == format.parts.length) {
-				for (var i=0, cnt = format.parts.length; i < cnt; i++) {
+				var date_filter = function(){
+					var m = this.slice(0, parts[i].length),
+					p = parts[i].slice(0, m.length);
+					return m == p;
+				};
+				for (i=0; i < format.parts.length; i++) {
 					val = parseInt(parts[i], 10)||1;
 					switch(format.parts[i]) {
 						case 'MM':
-							filtered = $(dates[language].months).filter(function(){
-								var m = this.slice(0, parts[i].length),
-									p = parts[i].slice(0, m.length);
-								return m == p;
-							});
+							filtered = $(dates[language].months).filter(date_filter);
 							val = $.inArray(filtered[0], dates[language].months) + 1;
 							break;
 						case 'M':
-							filtered = $(dates[language].monthsShort).filter(function(){
-								var m = this.slice(0, parts[i].length),
-									p = parts[i].slice(0, m.length);
-								return m == p;
-							});
+							filtered = $(dates[language].monthsShort).filter(date_filter);
 							val = $.inArray(filtered[0], dates[language].monthsShort) + 1;
 							break;
 					}
@@ -701,43 +704,26 @@
 			};
 			val.dd = (val.d < 10 ? '0' : '') + val.d;
 			val.mm = (val.m < 10 ? '0' : '') + val.m;
-			var date = [],
-				seps = $.extend([], format.separators);
-			for (var i=0, cnt = format.parts.length; i < cnt; i++) {
+			date = [];
+			var seps = $.extend([], format.separators);
+			for (var i=0; i < format.parts.length; i++){
 				if (seps.length)
-					date.push(seps.shift())
+					date.push(seps.shift());
 				date.push(val[format.parts[i]]);
 			}
 			return date.join('');
 		},
-		headTemplate: '<thead>'+
-							'<tr>'+
-								'<th class="prev"><i class="icon-arrow-left"/></th>'+
-								'<th colspan="5" class="switch"></th>'+
-								'<th class="next"><i class="icon-arrow-right"/></th>'+
-							'</tr>'+
-						'</thead>',
-		contTemplate: '<tbody><tr><td colspan="7"></td></tr></tbody>'
+		template: '<div class="datepicker dropdown-menu"><div class="datepicker-days"><table class=" table-condensed">' + 
+			'<thead><tr><th class="prev"><i class="icon-arrow-left"/></th><th colspan="5" class="switch"></th><th class="next"><i class="icon-arrow-right"/></th></tr></thead>' + 
+			'<tbody></tbody></table></div>' +
+			'<div class="datepicker-months"><table class="table-condensed">' + 
+			'<thead><tr><th class="prev"><i class="icon-arrow-left"/></th><th colspan="5" class="switch"></th><th class="next"><i class="icon-arrow-right"/></th></tr></thead>' + 
+			'<tbody><tr><td colspan="7"></td></tr></tbody>' + 
+			'</table></div>' +
+			'<div class="datepicker-years"><table class="table-condensed">' + 
+			'<thead><tr><th class="prev"><i class="icon-arrow-left"/></th><th colspan="5" class="switch"></th><th class="next"><i class="icon-arrow-right"/></th></tr></thead>' + 
+			'<tbody><tr><td colspan="7"></td></tr></tbody>' + 
+			'</table></div></div>'
 	};
-	DPGlobal.template = '<div class="datepicker dropdown-menu">'+
-							'<div class="datepicker-days">'+
-								'<table class=" table-condensed">'+
-									DPGlobal.headTemplate+
-									'<tbody></tbody>'+
-								'</table>'+
-							'</div>'+
-							'<div class="datepicker-months">'+
-								'<table class="table-condensed">'+
-									DPGlobal.headTemplate+
-									DPGlobal.contTemplate+
-								'</table>'+
-							'</div>'+
-							'<div class="datepicker-years">'+
-								'<table class="table-condensed">'+
-									DPGlobal.headTemplate+
-									DPGlobal.contTemplate+
-								'</table>'+
-							'</div>'+
-						'</div>';
 
-}( window.jQuery )
+}( window.jQuery );
