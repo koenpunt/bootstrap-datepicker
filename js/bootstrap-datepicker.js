@@ -658,9 +658,9 @@
 				}
 				return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
 			}
-			var parts = date ? date.match(this.nonpunctuation) : [],
-				date = new Date(),
-				parsed = {},
+			parts = date ? date.match(this.nonpunctuation) : [];
+			date = new Date();
+			var parsed = {},
 				setters_order = ['yyyy', 'yy', 'M', 'MM', 'm', 'mm', 'd', 'dd'],
 				setters_map = {
 					yyyy: function(d,v){ return d.setFullYear(v); },
@@ -674,9 +674,9 @@
 					},
 					d: function(d,v){ return d.setDate(v); }
 				},
-				val, filtered, part;
-			setters_map['M'] = setters_map['MM'] = setters_map['mm'] = setters_map['m'];
-			setters_map['dd'] = setters_map['d'];
+				val, filtered;
+			setters_map.M = setters_map.MM = setters_map.mm = setters_map.m;
+			setters_map.dd = setters_map.d;
 			date = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
 			if (parts.length == format.parts.length) {
 				var date_filter = function(){
@@ -699,7 +699,7 @@
 					}
 					parsed[part] = val;
 				}
-				for (var i=0, s; i<setters_order.length; i++){
+				for (i=0, s; i<setters_order.length; i++){
 					s = setters_order[i];
 					if (s in parsed)
 						setters_map[s](date, parsed[s])
