@@ -699,7 +699,8 @@
 					}
 					parsed[part] = val;
 				}
-				for (i=0, s; i<setters_order.length; i++){
+				var s;
+				for (i=0; i<setters_order.length; i++){
 					s = setters_order[i];
 					if (s in parsed)
 						setters_map[s](date, parsed[s])
