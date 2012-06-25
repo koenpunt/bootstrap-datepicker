@@ -163,14 +163,14 @@
 		},
 
 		setValue: function() {
-			var formated = DPGlobal.formatDate(this.date, this.format, this.language);
+			var formatted = DPGlobal.formatDate(this.date, this.format, this.language);
 			if (!this.isInput) {
 				if (this.component){
-					this.element.find('input').prop('value', formated);
+					this.element.find('input').prop('value', formatted);
 				}
-				this.element.data('date', formated);
+				this.element.data('date', formatted);
 			} else {
-				this.element.prop('value', formated);
+				this.element.prop('value', formatted);
 			}
 		},
 
@@ -248,7 +248,8 @@
 			this.updateNavArrows();
 			this.fillMonths();
 			var prevMonth = new Date(year, month-1, 28,0,0,0,0),
-				day = DPGlobal.getDaysInMonth(prevMonth.getFullYear(), prevMonth.getMonth());
+				day = DPGlobal.getDaysInMonth(prevMonth.getFullYear(), prevMonth.getMonth()),
+				prevDate, dstDay = 0, date;
 			prevMonth.setDate(day);
 			prevMonth.setDate(day - (prevMonth.getDay() - this.weekStart + 7)%7);
 			var nextMonth = new Date(prevMonth),
@@ -272,11 +273,42 @@
 				if (prevMonth.valueOf() < this.startDate || prevMonth.valueOf() > this.endDate) {
 					clsName += ' disabled';
 				}
-				html.push('<td class="day'+clsName+'">'+prevMonth.getDate() + '</td>');
+				date = prevMonth.getDate();
+				if (dstDay == -1) date++;
+				html.push('<td class="day'+clsName+'">'+date+ '</td>');
 				if (prevMonth.getDay() == this.weekEnd) {
 					html.push('</tr>');
 				}
+				prevDate = prevMonth.getDate();
 				prevMonth.setDate(prevMonth.getDate()+1);
+				if (prevMonth.getHours() != 0) {
+					// Fix for DST bug: if we are no longer at start of day, a DST jump probably happened
+					// We either fell back (eg, Jan 1 00:00 -> Jan 1 23:00)
+					// or jumped forward   (eg, Jan 1 00:00 -> Jan 2 01:00)
+					// Unfortunately, I can think of no way to test this in the unit tests, as it depends
+					// on the TZ of the client system.
+					if (!dstDay) {
+						// We are not currently handling a dst day (next round will deal with it)
+						if (prevMonth.getDate() == prevDate)
+							// We must compensate for fall-back
+							dstDay = -1;
+						else
+							// We must compensate for a jump-ahead
+							dstDay = +1;
+					}
+					else {
+						// The last round was our dst day (hours are still non-zero)
+						if (dstDay == -1)
+							// For a fall-back, fast-forward to next midnight
+							prevMonth.setHours(24);
+						else
+							// For a jump-ahead, just reset to 0
+							prevMonth.setHours(0);
+						// Reset minutes, as some TZs may be off by portions of an hour
+						prevMonth.setMinutes(0);
+						dstDay = 0;
+					}
+				}
 			}
 			this.picker.find('.datepicker-days tbody').empty().append(html.join(''));
 			var currentYear = this.date.getFullYear();
@@ -667,6 +699,8 @@
 					yy: function(d,v){ return d.setFullYear(2000+v); },
 					m: function(d,v){
 						v -= 1;
+						while (v<0) v += 12;
+						v %= 12;
 						d.setMonth(v);
 						while (d.getMonth() != v)
 							d.setDate(d.getDate()-1);
@@ -679,23 +713,28 @@
 			setters_map.dd = setters_map.d;
 			date = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
 			if (parts.length == format.parts.length) {
-				var date_filter = function(){
-					var m = this.slice(0, parts[i].length),
-					p = parts[i].slice(0, m.length);
-					return m == p;
-				};
-				for (i=0; i < format.parts.length; i++) {
-					val = parseInt(parts[i], 10)||1;
+				for (var i=0, cnt = format.parts.length; i < cnt; i++) {
+					val = parseInt(parts[i], 10);
 					part = format.parts[i];
-					switch(part) {
-						case 'MM':
-							filtered = $(dates[language].months).filter(date_filter);
-							val = $.inArray(filtered[0], dates[language].months) + 1;
-							break;
-						case 'M':
-							filtered = $(dates[language].monthsShort).filter(date_filter);
-							val = $.inArray(filtered[0], dates[language].monthsShort) + 1;
-							break;
+					if (isNaN(val)) {
+						switch(part) {
+							case 'MM':
+								filtered = $(dates[language].months).filter(function(){
+									var m = this.slice(0, parts[i].length),
+										p = parts[i].slice(0, m.length);
+									return m == p;
+								});
+								val = $.inArray(filtered[0], dates[language].months) + 1;
+								break;
+							case 'M':
+								filtered = $(dates[language].monthsShort).filter(function(){
+									var m = this.slice(0, parts[i].length),
+										p = parts[i].slice(0, m.length);
+									return m == p;
+								});
+								val = $.inArray(filtered[0], dates[language].monthsShort) + 1;
+								break;
+						}
 					}
 					parsed[part] = val;
 				}
